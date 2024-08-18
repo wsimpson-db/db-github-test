@@ -1,0 +1,52 @@
+name: Test and Merge
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to test'
+        required: true
+        default: '1.0.0'
+      pass_flag:
+        description: 'Pass flag (0 = fail, 1 = pass)'
+        required: true
+        default: '1'
+
+jobs:
+  test_and_merge:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Run tests
+      id: run_tests
+      run: |
+        echo "Testing version ${{ github.event.inputs.version }}"
+        if [ ${{ github.event.inputs.pass_flag }} -eq 0 ]; then
+          echo "Tests failed."
+          exit 1
+        else
+          echo "Tests passed."
+        fi
+
+    - name: Update version
+      if: steps.run_tests.outcome == 'success'
+      run: |
+        echo "Updating version to ${{ github.event.inputs.version }}"
+        # Update the version in your files here
+        # For example, update a VERSION.txt file
+        echo "${{ github.event.inputs.version }}" > VERSION.txt
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
+        git add VERSION.txt
+        git commit -m "Update version to ${{ github.event.inputs.version }}"
+        git push
+
+    - name: Merge changes
+      if: steps.run_tests.outcome == 'success'
+      run: |
+        echo "Merging changes"
+        git checkout main
+        git merge ${{ github.ref_name }}
+        git push
